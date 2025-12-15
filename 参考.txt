@@ -1,0 +1,545 @@
+// ==UserScript==
+// @name         ClaudeToken切换(赛博精神病·光污染版)
+// @namespace    https://github.com/kieran
+// @version      8.0.0
+// @description  动态切换Token - 粒子拖尾、RGB故障抖动、雷电特效、多动症UI
+// @author       kieran (Overload Edition)
+// @match        https://claude.ai/*
+// @match        https://demo.fuclaude.com/*
+// @match        https://claude.asia/*
+// @grant        GM_xmlhttpRequest
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    const config = {
+        storageKey: 'claudeTokens',
+        posKey: 'claudeBtnPos',
+        defaultToken: { name: '默认账号', key: '' }
+    };
+
+    // ⚡️ 视觉光污染中心
+    const getStyles = (isDarkMode) => {
+        const c = {
+            cyan: '#0ff',
+            pink: '#f0f',
+            yellow: '#ff0',
+            bg: 'rgba(0, 0, 0, 0.9)'
+        };
+
+        return `
+            /* --- 1. 奇点核心 (悬浮球) --- */
+            .singularity-wrapper {
+                position: fixed;
+                z-index: 999999;
+                width: 64px;
+                height: 64px;
+                cursor: pointer;
+                user-select: none;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                /* 核心多动症：轻微上下浮动 */
+                animation: float-jitter 0.2s infinite;
+            }
+
+            /* 内部能量球 */
+            .core-ball {
+                position: absolute;
+                width: 30px;
+                height: 30px;
+                background: #fff;
+                border-radius: 50%;
+                box-shadow: 0 0 20px ${c.cyan}, 0 0 40px ${c.pink}, 0 0 60px ${c.cyan};
+                z-index: 10;
+                /* 核心疯狂闪烁 */
+                animation: pulse-strobe 0.1s infinite alternate;
+            }
+
+            /* 外部旋转环 (带闪电) */
+            .ring-chaos {
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                border: 2px solid transparent;
+                border-top: 2px solid ${c.cyan};
+                border-bottom: 2px solid ${c.pink};
+                border-radius: 50%;
+                /* 极速旋转 */
+                animation: spin-chaos 0.5s linear infinite;
+                filter: drop-shadow(0 0 5px ${c.cyan});
+            }
+            .ring-chaos::before {
+                content: ''; position: absolute; top: -5px; left: -5px; right: -5px; bottom: -5px;
+                border: 2px dashed ${c.yellow}; border-radius: 50%;
+                animation: spin-reverse 2s linear infinite;
+            }
+
+            /* 拖拽时的疯狗模式 */
+            .singularity-wrapper.dragging .core-ball { background: ${c.yellow}; box-shadow: 0 0 50px ${c.yellow}; transform: scale(1.2); }
+            .singularity-wrapper.dragging .ring-chaos { animation-duration: 0.1s; border-color: ${c.yellow}; }
+
+            /* --- 2. 粒子特效 (拖尾) --- */
+            .particle {
+                position: fixed;
+                pointer-events: none;
+                background: ${c.cyan};
+                width: 4px; height: 4px;
+                box-shadow: 0 0 10px ${c.cyan};
+                animation: particle-fade 0.8s forwards;
+                z-index: 999998;
+            }
+            @keyframes particle-fade {
+                0% { opacity: 1; transform: scale(1); }
+                100% { opacity: 0; transform: scale(0) translate(var(--tx), var(--ty)); }
+            }
+
+            /* --- 3. 故障面板 (RGB Split) --- */
+            .cyber-panel {
+                position: fixed;
+                z-index: 10000;
+                width: 300px;
+                background: ${c.bg};
+                border: 1px solid ${c.cyan};
+                box-shadow: 0 0 20px ${c.cyan}, inset 0 0 20px rgba(0, 255, 255, 0.2);
+                padding: 20px;
+                display: none;
+                color: ${c.cyan};
+                font-family: "Courier New", monospace;
+                font-weight: bold;
+                text-transform: uppercase;
+                /* 面板整体微弱抖动 */
+                animation: panel-glitch 3s infinite;
+                clip-path: polygon(0 0, 100% 0, 100% 90%, 90% 100%, 0 100%);
+            }
+
+            /* 扫描线背景 */
+            .cyber-panel::after {
+                content: " ";
+                display: block;
+                position: absolute;
+                top: 0; left: 0; bottom: 0; right: 0;
+                background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+                z-index: -1;
+                background-size: 100% 2px, 3px 100%;
+                pointer-events: none;
+            }
+
+            /* 标题 RGB 分离效果 */
+            .glitch-text {
+                position: relative;
+                font-size: 20px;
+                letter-spacing: 2px;
+                margin-bottom: 20px;
+                text-shadow: 2px 0 ${c.pink}, -2px 0 ${c.yellow};
+                animation: text-shake 0.3s infinite;
+            }
+
+            /* --- 4. 暴力组件 --- */
+            .cyber-btn {
+                position: relative;
+                border: 2px solid ${c.cyan};
+                background: transparent;
+                color: ${c.cyan};
+                padding: 10px;
+                margin: 5px 0;
+                cursor: pointer;
+                font-weight: 900;
+                transition: 0.1s;
+                overflow: hidden;
+                text-shadow: 0 0 5px ${c.cyan};
+            }
+            .cyber-btn:hover {
+                background: ${c.cyan};
+                color: #000;
+                box-shadow: 0 0 30px ${c.cyan};
+            }
+            /* 按钮激活时的冲击波 */
+            .cyber-btn::after {
+                content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0;
+                background: rgba(255,255,255,0.5); border-radius: 50%; transform: translate(-50%, -50%);
+            }
+            .cyber-btn:active::after {
+                width: 200%; height: 200%; transition: 0.2s; opacity: 0;
+            }
+
+            .cyber-btn.danger { border-color: ${c.pink}; color: ${c.pink}; text-shadow: 0 0 5px ${c.pink}; }
+            .cyber-btn.danger:hover { background: ${c.pink}; color: #fff; box-shadow: 0 0 30px ${c.pink}; }
+
+            .cyber-input {
+                width: 100%; padding: 10px;
+                background: #000; border: 1px solid ${c.pink};
+                color: ${c.pink}; font-family: monospace;
+                margin-bottom: 10px; outline: none;
+                box-shadow: inset 0 0 10px ${c.pink};
+            }
+            .cyber-input:focus { box-shadow: 0 0 15px ${c.pink}; }
+
+            .cyber-select {
+                width: 100%; height: 40px;
+                background: #000; border: 1px solid ${c.yellow};
+                color: ${c.yellow}; font-family: monospace;
+                margin-bottom: 10px;
+            }
+
+            /* --- 5. 动画定义 (多动症核心) --- */
+            @keyframes spin-chaos { 0% { transform: rotate(0deg) skew(0deg); } 50% { transform: rotate(180deg) skew(10deg); } 100% { transform: rotate(360deg) skew(0deg); } }
+            @keyframes spin-reverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+            @keyframes pulse-strobe { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0.8; transform: scale(0.95); } }
+            @keyframes float-jitter { 0% { transform: translate(0,0); } 25% { transform: translate(1px, 1px); } 50% { transform: translate(-1px, 0); } 75% { transform: translate(0, -1px); } 100% { transform: translate(0,0); } }
+            @keyframes text-shake { 0% { transform: translate(1px, 1px); } 25% { transform: translate(-1px, -1px); } 50% { transform: translate(-1px, 1px); } 75% { transform: translate(1px, -1px); } 100% { transform: translate(0,0); } }
+            @keyframes panel-glitch { 0% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); } 98% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); transform: translate(0,0); } 99% { clip-path: polygon(0 10%, 100% 0, 100% 90%, 0 100%); transform: translate(-2px, 2px); } 100% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); transform: translate(0,0); } }
+
+            /* 列表 */
+            .token-list { max-height: 200px; overflow-y: auto; border: 1px dashed #333; padding: 5px; }
+            .token-item { padding: 5px; border-bottom: 1px solid #333; cursor: pointer; transition: 0.1s; }
+            .token-item:hover { background: ${c.cyan}; color: #000; font-weight: bold; }
+
+            .close-x { float:right; cursor:pointer; font-size:20px; color:${c.pink}; }
+        `;
+    };
+
+    const UI = {
+        createElem(tag, styles = {}, className = '') {
+            const elem = document.createElement(tag);
+            Object.assign(elem.style, styles);
+            if (className) elem.className = className;
+            return elem;
+        },
+
+        createButton(text, className, onClick) {
+            const btn = document.createElement('button');
+            btn.innerHTML = text;
+            btn.className = `cyber-btn ${className}`;
+            if (onClick) btn.onclick = (e) => {
+                e.stopPropagation();
+                // 按钮冲击波特效
+                const ripple = document.createElement('div');
+                ripple.style.cssText = `position:absolute; width:100vw; height:100vh; background:white; opacity:0.1; top:0; left:0; pointer-events:none; z-index:9999999; animation: particle-fade 0.2s forwards;`;
+                document.body.appendChild(ripple);
+                setTimeout(() => ripple.remove(), 200);
+                onClick(e);
+            };
+            return btn;
+        },
+
+        // 🔥 创建奇点核心
+        createSingularity() {
+            const wrapper = this.createElem('div', {}, 'singularity-wrapper');
+            const ring = this.createElem('div', {}, 'ring-chaos');
+            const core = this.createElem('div', {}, 'core-ball');
+            wrapper.appendChild(ring);
+            wrapper.appendChild(core);
+            wrapper.title = "⚠️ DANGER: HIGH VOLTAGE";
+            return wrapper;
+        },
+
+        // ✨ 粒子发生器 (High Performance)
+        spawnParticles(x, y) {
+            // 限制粒子数量，防止浏览器崩溃
+            if (document.querySelectorAll('.particle').length > 50) return;
+
+            for(let i=0; i<3; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                p.style.left = x + 'px';
+                p.style.top = y + 'px';
+
+                // 随机散射方向
+                const tx = (Math.random() - 0.5) * 100 + 'px';
+                const ty = (Math.random() - 0.5) * 100 + 'px';
+                p.style.setProperty('--tx', tx);
+                p.style.setProperty('--ty', ty);
+
+                // 随机颜色
+                p.style.background = Math.random() > 0.5 ? '#0ff' : '#f0f';
+                p.style.boxShadow = `0 0 10px ${p.style.background}`;
+
+                document.body.appendChild(p);
+                setTimeout(() => p.remove(), 800);
+            }
+        },
+
+        showToast(message) {
+            const t = document.createElement('div');
+            t.style.cssText = "position:fixed; top:10%; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); border:2px solid #0ff; color:#0ff; padding:10px 30px; font-family:monospace; font-size:20px; font-weight:bold; box-shadow:0 0 30px #0ff; z-index:9999999; text-transform:uppercase;";
+            t.innerText = `>> ${message} <<`;
+            document.body.appendChild(t);
+            // 故障闪烁移除
+            let visible = true;
+            const blink = setInterval(() => {
+                t.style.opacity = visible ? '0' : '1';
+                visible = !visible;
+            }, 100);
+            setTimeout(() => { clearInterval(blink); t.remove(); }, 1500);
+        }
+    };
+
+    const App = {
+        init() {
+            this.isDarkMode = document.documentElement.getAttribute('data-mode') === 'dark';
+            this.tokens = JSON.parse(localStorage.getItem(config.storageKey) || '[]');
+
+            let savedPos = JSON.parse(localStorage.getItem(config.posKey));
+            if (!savedPos || !this.isPositionValid(savedPos)) {
+                savedPos = { top: '200px', left: (window.innerWidth - 100) + 'px' };
+            }
+            this.pos = savedPos;
+
+            this.injectStyles();
+            this.createMainUI();
+            this.setupDrag();
+            this.setupGlobalClick();
+            this.updateTokenSelect();
+
+            new MutationObserver(() => {
+                this.isDarkMode = document.documentElement.getAttribute('data-mode') === 'dark';
+                this.styleElem.textContent = getStyles(this.isDarkMode);
+            }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] });
+
+            window.addEventListener('resize', () => this.ensureVisible());
+        },
+
+        isPositionValid(pos) {
+            if (!pos.top || !pos.left) return false;
+            const top = parseInt(pos.top);
+            const left = parseInt(pos.left);
+            return top >= 0 && top <= window.innerHeight - 80 && left >= -50 && left <= window.innerWidth - 80;
+        },
+
+        ensureVisible() {
+            const rect = this.singularity.getBoundingClientRect();
+            let newTop = Math.max(10, Math.min(rect.top, window.innerHeight - 90));
+            let newLeft = Math.max(10, Math.min(rect.left, window.innerWidth - 90));
+            this.singularity.style.top = newTop + 'px';
+            this.singularity.style.left = newLeft + 'px';
+            this.savePos();
+        },
+
+        injectStyles() {
+            this.styleElem = document.createElement('style');
+            this.styleElem.textContent = getStyles(this.isDarkMode);
+            document.head.appendChild(this.styleElem);
+        },
+
+        createMainUI() {
+            this.singularity = UI.createSingularity();
+            this.singularity.style.top = this.pos.top;
+            this.singularity.style.left = this.pos.left;
+
+            // 遮罩层 (点击外部关闭)
+            this.mask = document.createElement('div');
+            this.mask.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; display:none; z-index:9999;";
+            this.mask.onclick = () => this.closePanel();
+
+            this.panel = UI.createElem('div', {}, 'cyber-panel');
+
+            document.body.appendChild(this.singularity);
+            document.body.appendChild(this.mask);
+            document.body.appendChild(this.panel);
+
+            this.showMainView();
+
+            this.singularity.addEventListener('click', (e) => {
+                if (!this.isDragging) {
+                    e.stopPropagation();
+                    this.togglePanel();
+                }
+            });
+        },
+
+        showMainView() {
+            this.panel.innerHTML = '';
+
+            const title = UI.createElem('div', {}, 'glitch-text');
+            title.innerHTML = 'SYSTEM_OVERRIDE <span class="close-x">×</span>';
+            title.querySelector('.close-x').onclick = (e) => { e.stopPropagation(); this.closePanel(); };
+
+            this.tokenSelect = document.createElement('select');
+            this.tokenSelect.className = 'cyber-select';
+            this.tokenSelect.onclick = (e) => e.stopPropagation();
+            this.updateTokenSelect();
+
+            const btnSwitch = UI.createButton('⚡ INITIATE_LINK (切换)', '', () => this.handleSwitch());
+            const btnAdd = UI.createButton('✚ INJECT_DATA (添加)', 'danger', () => this.showAddView());
+            const btnManage = UI.createButton('⚙ CONFIG (管理)', 'danger', () => this.showManageView());
+
+            this.panel.appendChild(title);
+            this.panel.appendChild(this.tokenSelect);
+            this.panel.appendChild(btnSwitch);
+            this.panel.appendChild(btnAdd);
+            this.panel.appendChild(btnManage);
+        },
+
+        showAddView() {
+            this.panel.innerHTML = '';
+            const title = UI.createElem('div', {}, 'glitch-text');
+            title.innerText = 'DATA_INJECTION';
+
+            const nameIn = document.createElement('input'); nameIn.className = 'cyber-input'; nameIn.placeholder = 'ALIAS_ID';
+            nameIn.onclick = (e) => e.stopPropagation();
+            const keyIn = document.createElement('input'); keyIn.className = 'cyber-input'; keyIn.placeholder = 'ACCESS_KEY';
+            keyIn.onclick = (e) => e.stopPropagation();
+
+            const btnSave = UI.createButton('UPLOAD', '', () => {
+                if(nameIn.value && keyIn.value) {
+                    this.tokens.push({name: nameIn.value, key: keyIn.value});
+                    localStorage.setItem(config.storageKey, JSON.stringify(this.tokens));
+                    UI.showToast('UPLOAD_COMPLETE');
+                    this.showMainView();
+                }
+            });
+            const btnBack = UI.createButton('ABORT', 'danger', () => this.showMainView());
+
+            this.panel.appendChild(title);
+            this.panel.appendChild(nameIn);
+            this.panel.appendChild(keyIn);
+            this.panel.appendChild(btnSave);
+            this.panel.appendChild(btnBack);
+        },
+
+        showManageView() {
+            this.panel.innerHTML = '';
+            const title = UI.createElem('div', {}, 'glitch-text');
+            title.innerText = 'MEMORY_BANK';
+
+            const list = document.createElement('div');
+            list.className = 'token-list';
+            list.onclick = (e) => e.stopPropagation();
+
+            const render = () => {
+                list.innerHTML = '';
+                this.tokens.forEach((t, i) => {
+                    const item = document.createElement('div');
+                    item.className = 'token-item';
+                    item.innerHTML = `<span>${t.name}</span> <span style="float:right;font-size:10px;color:#f0f">[DEL]</span>`;
+                    item.onclick = (e) => {
+                        e.stopPropagation();
+                        if(confirm('ERASE DATA?')) {
+                            this.tokens.splice(i, 1);
+                            localStorage.setItem(config.storageKey, JSON.stringify(this.tokens));
+                            render();
+                            this.updateTokenSelect();
+                        }
+                    };
+                    list.appendChild(item);
+                });
+            };
+            render();
+
+            const btnBack = UI.createButton('RETURN', 'danger', () => this.showMainView());
+
+            this.panel.appendChild(title);
+            this.panel.appendChild(list);
+            this.panel.appendChild(btnBack);
+        },
+
+        handleSwitch() {
+            const token = this.tokens[this.tokenSelect.value]?.key;
+            if (!token) return UI.showToast('NO_TARGET');
+            document.cookie = `sessionKey=${token}; path=/; domain=.claude.ai; max-age=31536000`;
+            UI.showToast('SYNC_ESTABLISHED');
+            setTimeout(() => window.location.reload(), 1000);
+        },
+
+        updateTokenSelect() {
+            if (!this.tokenSelect) return;
+            this.tokenSelect.innerHTML = '';
+            this.tokens.forEach((t, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.text = t.name;
+                this.tokenSelect.appendChild(opt);
+            });
+        },
+
+        setupGlobalClick() {
+            // 已用遮罩层代替
+        },
+
+        setupDrag() {
+            this.isDragging = false;
+            let startX, startY, initialLeft, initialTop;
+
+            this.singularity.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                this.isDragging = false;
+                startX = e.clientX;
+                startY = e.clientY;
+                const rect = this.singularity.getBoundingClientRect();
+                initialLeft = rect.left;
+                initialTop = rect.top;
+
+                const onMouseMove = (e) => {
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                        this.isDragging = true;
+                        this.singularity.classList.add('dragging');
+
+                        let newLeft = Math.max(0, Math.min(initialLeft + dx, window.innerWidth - 70));
+                        let newTop = Math.max(0, Math.min(initialTop + dy, window.innerHeight - 70));
+
+                        this.singularity.style.left = `${newLeft}px`;
+                        this.singularity.style.top = `${newTop}px`;
+
+                        // ✨ 拖拽时喷射粒子
+                        UI.spawnParticles(newLeft + 32, newTop + 32);
+
+                        this.closePanel();
+                    }
+                };
+
+                const onMouseUp = () => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    this.singularity.classList.remove('dragging');
+                    if (this.isDragging) {
+                        this.savePos();
+                        setTimeout(() => { this.isDragging = false; }, 50);
+                    }
+                };
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+        },
+
+        savePos() {
+            this.pos = { top: this.singularity.style.top, left: this.singularity.style.left };
+            localStorage.setItem(config.posKey, JSON.stringify(this.pos));
+        },
+
+        togglePanel() {
+            if (this.panel.style.display === 'none') {
+                this.updatePanelPos();
+                this.panel.style.display = 'block';
+                this.mask.style.display = 'block';
+                this.showMainView();
+            } else {
+                this.closePanel();
+            }
+        },
+
+        closePanel() {
+            this.panel.style.display = 'none';
+            this.mask.style.display = 'none';
+        },
+
+        updatePanelPos() {
+            const rect = this.singularity.getBoundingClientRect();
+            // 智能定位：默认右侧，不够放左侧
+            let left = rect.right + 20;
+            if (left + 320 > window.innerWidth) left = rect.left - 340;
+
+            let top = rect.top;
+            if (top + 400 > window.innerHeight) top = window.innerHeight - 420;
+
+            this.panel.style.left = `${left}px`;
+            this.panel.style.top = `${top}px`;
+        }
+    };
+
+    App.init();
+})();

@@ -1,0 +1,11 @@
+# 图标文件目录
+
+请在此目录放置以下图标文件：
+- icon.ico (Windows)
+- icon.icns (macOS)
+- icon.png (Linux/系统托盘)
+
+图标尺寸建议：
+- Windows ICO: 256x256
+- macOS ICNS: 512x512
+- PNG: 256x256 或 512x512
