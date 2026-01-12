@@ -88,6 +88,7 @@ class BehaviorSystem {
 
     toggle() {
         this.setEnabled(!this.enabled);
+        return this.enabled;
     }
 
     // 安排随机移动

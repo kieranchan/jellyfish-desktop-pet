@@ -30,7 +30,12 @@ class PetApp {
             // 注册行为切换事件
             if (window.electronAPI?.onToggleBehavior) {
                 this.unsubscribeToggleBehavior = window.electronAPI.onToggleBehavior(() => {
-                    this.behavior.toggle();
+                    const behaviorEnabled = this.behavior.toggle
+                        ? this.behavior.toggle()
+                        : this.behavior.enabled
+                            ? (this.behavior.stop(), false)
+                            : (this.behavior.start(), true);
+                    window.electronAPI?.sendBehaviorStatus?.(behaviorEnabled);
                 });
             }
 
@@ -39,20 +44,7 @@ class PetApp {
 
             // 自动启动AI行为系统
             this.behavior.start();
-            ipcRenderer.send('behavior-status-changed', this.behavior.enabled);
-
-            ipcRenderer.on('toggle-behavior', () => {
-                const behaviorEnabled = this.behavior.toggle
-                    ? this.behavior.toggle()
-                    : this.behavior.enabled
-                        ? (this.behavior.stop(), false)
-                        : (this.behavior.start(), true);
-
-                ipcRenderer.send('behavior-status-changed', behaviorEnabled);
-            });
-            if (this.behavior.enabled) {
-                this.behavior.start();
-            }
+            window.electronAPI?.sendBehaviorStatus?.(this.behavior.enabled);
 
             console.log('Autonomous Pet AI started! Pet is now free to roam...');
         } catch (error) {
