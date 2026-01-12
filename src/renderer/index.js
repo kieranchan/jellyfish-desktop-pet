@@ -31,6 +31,18 @@ class PetApp {
             this.startRenderLoop();
 
             // 自动启动AI行为系统
+            this.behavior.start();
+            ipcRenderer.send('behavior-status-changed', this.behavior.enabled);
+
+            ipcRenderer.on('toggle-behavior', () => {
+                const behaviorEnabled = this.behavior.toggle
+                    ? this.behavior.toggle()
+                    : this.behavior.enabled
+                        ? (this.behavior.stop(), false)
+                        : (this.behavior.start(), true);
+
+                ipcRenderer.send('behavior-status-changed', behaviorEnabled);
+            });
             if (this.behavior.enabled) {
                 this.behavior.start();
             }

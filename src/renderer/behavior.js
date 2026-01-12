@@ -4,6 +4,7 @@ class BehaviorSystem {
         this.pet = pet;
         this.config = config;
         this.screenSize = screenSize;
+        this.enabled = false;
         this.enabled = !!config.behavior.enabled;
 
         // 定时器
@@ -25,7 +26,9 @@ class BehaviorSystem {
 
     // 启动AI行为
     start() {
-        if (!this.enabled) return;
+        if (this.enabled) return;
+
+        this.enabled = true;
 
         console.log('Autonomous AI behavior system activated');
 
@@ -57,6 +60,16 @@ class BehaviorSystem {
 
         this.pendingTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
         this.pendingTimeouts = [];
+    }
+
+    toggle() {
+        if (this.enabled) {
+            this.stop();
+            return false;
+        }
+
+        this.start();
+        return true;
     }
 
     // 安排随机移动
