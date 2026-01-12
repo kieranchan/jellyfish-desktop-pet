@@ -62,14 +62,19 @@ class BehaviorSystem {
         this.pendingTimeouts = [];
     }
 
-    toggle() {
+    setEnabled(enabled) {
+        const shouldEnable = Boolean(enabled);
+        if (this.enabled === shouldEnable) return;
+        this.enabled = shouldEnable;
         if (this.enabled) {
+            this.start();
+        } else {
             this.stop();
-            return false;
         }
+    }
 
-        this.start();
-        return true;
+    toggle() {
+        this.setEnabled(!this.enabled);
     }
 
     // 安排随机移动

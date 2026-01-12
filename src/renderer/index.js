@@ -27,6 +27,13 @@ class PetApp {
             this.pet = new Pet(this.canvas, this.config, this.screenSize);
             this.behavior = new BehaviorSystem(this.pet, this.config, this.screenSize);
 
+            // 注册行为切换事件
+            if (window.electronAPI?.onToggleBehavior) {
+                this.unsubscribeToggleBehavior = window.electronAPI.onToggleBehavior(() => {
+                    this.behavior.toggle();
+                });
+            }
+
             // 启动渲染循环
             this.startRenderLoop();
 
