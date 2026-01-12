@@ -15,6 +15,7 @@ class BehaviorSystem {
             speedChange: null
         };
         this.pendingTimeouts = [];
+        this.pendingIntervals = [];
 
         // 行为模式
         this.movePatterns = ['direct', 'curve', 'zigzag', 'wander'];
@@ -69,6 +70,9 @@ class BehaviorSystem {
 
         this.pendingTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
         this.pendingTimeouts = [];
+
+        this.pendingIntervals.forEach(intervalId => clearInterval(intervalId));
+        this.pendingIntervals = [];
     }
 
     setEnabled(enabled) {
@@ -271,13 +275,18 @@ class BehaviorSystem {
         const shakeCount = 8;
 
         let count = 0;
-        const interval = setInterval(() => {
+        let intervalId = null;
+        intervalId = this.registerInterval(() => {
+            if (!this.enabled) {
+                this.clearInterval(intervalId);
+                return;
+            }
             if (count < shakeCount) {
                 this.pet.state.x = originalX + (Math.random() - 0.5) * shakeAmount;
                 count++;
             } else {
                 this.pet.state.x = originalX;
-                clearInterval(interval);
+                this.clearInterval(intervalId);
             }
         }, shakeDuration / shakeCount);
     }
@@ -388,6 +397,21 @@ class BehaviorSystem {
 
     removePendingTimeout(timeoutId) {
         this.pendingTimeouts = this.pendingTimeouts.filter(id => id !== timeoutId);
+    }
+
+    registerInterval(callback, delay) {
+        const intervalId = setInterval(callback, delay);
+        this.pendingIntervals.push(intervalId);
+        return intervalId;
+    }
+
+    clearInterval(intervalId) {
+        clearInterval(intervalId);
+        this.removePendingInterval(intervalId);
+    }
+
+    removePendingInterval(intervalId) {
+        this.pendingIntervals = this.pendingIntervals.filter(id => id !== intervalId);
     }
 }
 
