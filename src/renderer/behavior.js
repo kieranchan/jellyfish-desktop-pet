@@ -59,6 +59,21 @@ class BehaviorSystem {
         this.pendingTimeouts = [];
     }
 
+    setEnabled(enabled) {
+        const shouldEnable = Boolean(enabled);
+        if (this.enabled === shouldEnable) return;
+        this.enabled = shouldEnable;
+        if (this.enabled) {
+            this.start();
+        } else {
+            this.stop();
+        }
+    }
+
+    toggle() {
+        this.setEnabled(!this.enabled);
+    }
+
     // 安排随机移动
     scheduleRandomWalk() {
         if (!this.enabled) return;
