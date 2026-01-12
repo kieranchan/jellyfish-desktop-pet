@@ -27,9 +27,9 @@ class BehaviorSystem {
 
     // 启动AI行为
     start() {
-        if (this.enabled) return this.enabled;
-
-        this.enabled = true;
+        if (!this.enabled) {
+            return;
+        }
 
         console.log('Autonomous AI behavior system activated');
 
@@ -46,10 +46,6 @@ class BehaviorSystem {
         this.scheduleRandomSpeedChange();
 
         return this.enabled;
-    }
-
-    setEnabled(enabled) {
-        return enabled ? this.start() : this.stop();
     }
 
     // 停止AI行为

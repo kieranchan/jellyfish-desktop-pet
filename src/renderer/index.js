@@ -33,8 +33,8 @@ class PetApp {
                     const behaviorEnabled = this.behavior.toggle
                         ? this.behavior.toggle()
                         : this.behavior.enabled
-                            ? (this.behavior.stop(), false)
-                            : (this.behavior.start(), true);
+                            ? (this.behavior.setEnabled(false), false)
+                            : (this.behavior.setEnabled(true), true);
                     window.electronAPI?.sendBehaviorStatus?.(behaviorEnabled);
                 });
             }
@@ -42,9 +42,11 @@ class PetApp {
             // 启动渲染循环
             this.startRenderLoop();
 
-            // 自动启动AI行为系统
-            const behaviorEnabled = this.behavior.start();
-            window.electronAPI?.sendBehaviorStatus?.(behaviorEnabled);
+            // 根据配置启动AI行为系统
+            if (this.config?.behavior?.enabled) {
+                this.behavior.setEnabled(true);
+            }
+            window.electronAPI?.sendBehaviorStatus?.(this.behavior.enabled);
 
             console.log('Autonomous Pet AI started! Pet is now free to roam...');
         } catch (error) {
