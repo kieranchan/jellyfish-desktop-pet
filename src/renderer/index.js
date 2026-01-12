@@ -43,8 +43,8 @@ class PetApp {
             this.startRenderLoop();
 
             // 自动启动AI行为系统
-            this.behavior.start();
-            window.electronAPI?.sendBehaviorStatus?.(this.behavior.enabled);
+            const behaviorEnabled = this.behavior.start();
+            window.electronAPI?.sendBehaviorStatus?.(behaviorEnabled);
 
             console.log('Autonomous Pet AI started! Pet is now free to roam...');
         } catch (error) {

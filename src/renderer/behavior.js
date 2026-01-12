@@ -27,7 +27,7 @@ class BehaviorSystem {
 
     // 启动AI行为
     start() {
-        if (this.enabled) return;
+        if (this.enabled) return this.enabled;
 
         this.enabled = true;
 
@@ -44,19 +44,18 @@ class BehaviorSystem {
 
         // 随机速度变化
         this.scheduleRandomSpeedChange();
+
+        return this.enabled;
     }
 
     setEnabled(enabled) {
-        if (enabled) {
-            this.start();
-            return;
-        }
-
-        this.stop();
+        return enabled ? this.start() : this.stop();
     }
 
     // 停止AI行为
     stop() {
+        if (!this.enabled) return this.enabled;
+
         console.log('AI behavior system stopped');
 
         this.enabled = false;
@@ -73,22 +72,12 @@ class BehaviorSystem {
 
         this.pendingIntervals.forEach(intervalId => clearInterval(intervalId));
         this.pendingIntervals = [];
-    }
 
-    setEnabled(enabled) {
-        const shouldEnable = Boolean(enabled);
-        if (this.enabled === shouldEnable) return;
-        this.enabled = shouldEnable;
-        if (this.enabled) {
-            this.start();
-        } else {
-            this.stop();
-        }
+        return this.enabled;
     }
 
     toggle() {
-        this.setEnabled(!this.enabled);
-        return this.enabled;
+        return this.setEnabled(!this.enabled);
     }
 
     // 安排随机移动
