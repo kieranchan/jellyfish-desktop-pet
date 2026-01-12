@@ -4,7 +4,7 @@ class BehaviorSystem {
         this.pet = pet;
         this.config = config;
         this.screenSize = screenSize;
-        this.enabled = true;
+        this.enabled = !!config.behavior.enabled;
 
         // 定时器
         this.timers = {

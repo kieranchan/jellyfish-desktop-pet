@@ -32,7 +32,9 @@ class PetApp {
             this.startRenderLoop();
 
             // 自动启动AI行为系统
-            this.behavior.start();
+            if (this.behavior.enabled) {
+                this.behavior.start();
+            }
 
             console.log('Autonomous Pet AI started! Pet is now free to roam...');
         } catch (error) {
