@@ -5,6 +5,7 @@ class BehaviorSystem {
         this.config = config;
         this.screenSize = screenSize;
         this.enabled = false;
+        this.enabled = !!config.behavior.enabled;
 
         // 定时器
         this.timers = {
@@ -13,6 +14,7 @@ class BehaviorSystem {
             expression: null,
             speedChange: null
         };
+        this.pendingTimeouts = [];
 
         // 行为模式
         this.movePatterns = ['direct', 'curve', 'zigzag', 'wander'];
@@ -47,6 +49,8 @@ class BehaviorSystem {
     stop() {
         console.log('AI behavior system stopped');
 
+        this.enabled = false;
+
         Object.keys(this.timers).forEach(key => {
             if (this.timers[key]) {
                 clearTimeout(this.timers[key]);
@@ -54,7 +58,8 @@ class BehaviorSystem {
             }
         });
 
-        this.enabled = false;
+        this.pendingTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+        this.pendingTimeouts = [];
     }
 
     toggle() {
@@ -74,7 +79,8 @@ class BehaviorSystem {
         // 更短的间隔，更频繁的移动
         const delay = this.randomInterval(3000, 8000);
 
-        this.timers.walk = setTimeout(() => {
+        this.timers.walk = this.registerTimeout(() => {
+            if (!this.enabled) return;
             this.randomWalk();
             this.scheduleRandomWalk();
         }, delay);
@@ -120,7 +126,8 @@ class BehaviorSystem {
         this.pet.setTarget(midX, midY);
 
         // 然后移动到目标
-        setTimeout(() => {
+        this.registerTimeout(() => {
+            if (!this.enabled) return;
             this.pet.setTarget(targetX, targetY);
         }, this.randomInt(1000, 2000));
     }
@@ -137,7 +144,8 @@ class BehaviorSystem {
             const y = currentPos.y + (targetY - currentPos.y) * ratio;
             const offsetX = (i % 2 === 0 ? 1 : -1) * 100;
 
-            setTimeout(() => {
+            this.registerTimeout(() => {
+                if (!this.enabled) return;
                 this.pet.setTarget(x + offsetX, y);
             }, delay);
 
@@ -151,6 +159,7 @@ class BehaviorSystem {
         const startTime = Date.now();
 
         const wander = () => {
+            if (!this.enabled) return;
             if (Date.now() - startTime > duration) return;
 
             const currentPos = this.pet.getPosition();
@@ -163,7 +172,7 @@ class BehaviorSystem {
                 Math.max(100, Math.min(targetY, this.screenSize.height - 100))
             );
 
-            setTimeout(wander, this.randomInt(1000, 2000));
+            this.registerTimeout(wander, this.randomInt(1000, 2000));
         };
 
         wander();
@@ -175,7 +184,8 @@ class BehaviorSystem {
 
         const delay = this.randomInterval(4000, 10000);
 
-        this.timers.action = setTimeout(() => {
+        this.timers.action = this.registerTimeout(() => {
+            if (!this.enabled) return;
             this.randomAction();
             this.scheduleRandomAction();
         }, delay);
@@ -206,11 +216,17 @@ class BehaviorSystem {
                 break;
             case 'speedup':
                 this.pet.setSpeed(this.randomFloat(2.0, 4.0));
-                setTimeout(() => this.pet.setSpeed(1.0), this.randomInt(2000, 4000));
+                this.registerTimeout(() => {
+                    if (!this.enabled) return;
+                    this.pet.setSpeed(1.0);
+                }, this.randomInt(2000, 4000));
                 break;
             case 'slowdown':
                 this.pet.setSpeed(this.randomFloat(0.3, 0.6));
-                setTimeout(() => this.pet.setSpeed(1.0), this.randomInt(2000, 4000));
+                this.registerTimeout(() => {
+                    if (!this.enabled) return;
+                    this.pet.setSpeed(1.0);
+                }, this.randomInt(2000, 4000));
                 break;
             case 'drift':
                 this.performDrift();
@@ -222,7 +238,8 @@ class BehaviorSystem {
     performPause() {
         const wasMoving = this.pet.state.isMoving;
         this.pet.state.isMoving = false;
-        setTimeout(() => {
+        this.registerTimeout(() => {
+            if (!this.enabled) return;
             if (!wasMoving) this.pet.state.isMoving = true;
         }, this.randomInt(1000, 3000));
     }
@@ -290,13 +307,15 @@ class BehaviorSystem {
 
         const delay = this.randomInterval(8000, 20000);
 
-        this.timers.expression = setTimeout(() => {
+        this.timers.expression = this.registerTimeout(() => {
+            if (!this.enabled) return;
             const expression = this.randomChoice(this.expressions);
             console.log(`AI: Changing expression to ${expression}`);
             this.pet.setExpression(expression);
 
             // 一段时间后恢复idle
-            setTimeout(() => {
+            this.registerTimeout(() => {
+                if (!this.enabled) return;
                 this.pet.setExpression('idle');
             }, this.randomInt(3000, 8000));
 
@@ -310,13 +329,15 @@ class BehaviorSystem {
 
         const delay = this.randomInterval(10000, 25000);
 
-        this.timers.speedChange = setTimeout(() => {
+        this.timers.speedChange = this.registerTimeout(() => {
+            if (!this.enabled) return;
             const speed = this.randomFloat(0.5, 2.5);
             console.log(`AI: Changing speed to ${speed.toFixed(2)}x`);
             this.pet.setSpeed(speed);
 
             // 恢复正常速度
-            setTimeout(() => {
+            this.registerTimeout(() => {
+                if (!this.enabled) return;
                 this.pet.setSpeed(1.0);
             }, this.randomInt(5000, 15000));
 
@@ -339,6 +360,20 @@ class BehaviorSystem {
 
     randomInterval(min, max) {
         return this.randomInt(min, max);
+    }
+
+    registerTimeout(callback, delay) {
+        let timeoutId = null;
+        timeoutId = setTimeout(() => {
+            this.removePendingTimeout(timeoutId);
+            callback();
+        }, delay);
+        this.pendingTimeouts.push(timeoutId);
+        return timeoutId;
+    }
+
+    removePendingTimeout(timeoutId) {
+        this.pendingTimeouts = this.pendingTimeouts.filter(id => id !== timeoutId);
     }
 }
 

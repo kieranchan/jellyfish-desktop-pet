@@ -1,7 +1,6 @@
 const Pet = require('./pet');
 const CanvasEngine = require('./canvas');
 const BehaviorSystem = require('./behavior');
-const { ipcRenderer } = require('electron');
 
 // 应用类 - 纯自主AI驱动，无人为交互
 class PetApp {
@@ -18,8 +17,8 @@ class PetApp {
             console.log('Autonomous Pet AI initializing...');
 
             // 获取配置和屏幕尺寸
-            this.config = await ipcRenderer.invoke('get-config');
-            this.screenSize = ipcRenderer.sendSync('get-screen-size');
+            this.config = await window.electronAPI.getConfig();
+            this.screenSize = window.electronAPI.getScreenSize();
 
             console.log('Screen size:', this.screenSize);
 
@@ -44,6 +43,9 @@ class PetApp {
 
                 ipcRenderer.send('behavior-status-changed', behaviorEnabled);
             });
+            if (this.behavior.enabled) {
+                this.behavior.start();
+            }
 
             console.log('Autonomous Pet AI started! Pet is now free to roam...');
         } catch (error) {
