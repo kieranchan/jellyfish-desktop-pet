@@ -83,6 +83,13 @@ class Application {
             }
         });
 
+        // 更新行为状态以同步托盘菜单
+        ipcMain.on('behavior-status-changed', (event, behaviorEnabled) => {
+            if (this.trayManager) {
+                this.trayManager.updateContextMenu(behaviorEnabled);
+            }
+        });
+
         console.log('IPC handlers registered');
     }
 
