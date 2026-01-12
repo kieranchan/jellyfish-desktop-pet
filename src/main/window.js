@@ -27,9 +27,10 @@ class WindowManager {
             focusable: false,  // 不接受焦点
             show: false,
             webPreferences: {
-                nodeIntegration: true,
-                contextIsolation: false,
-                enableRemoteModule: false
+                nodeIntegration: false,
+                contextIsolation: true,
+                enableRemoteModule: false,
+                preload: path.join(__dirname, 'preload.js')
             }
         };
 
