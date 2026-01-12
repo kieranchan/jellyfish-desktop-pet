@@ -45,6 +45,15 @@ class BehaviorSystem {
         this.scheduleRandomSpeedChange();
     }
 
+    setEnabled(enabled) {
+        if (enabled) {
+            this.start();
+            return;
+        }
+
+        this.stop();
+    }
+
     // 停止AI行为
     stop() {
         console.log('AI behavior system stopped');
