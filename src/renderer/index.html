@@ -41,9 +41,10 @@
     <!-- Fullscreen Canvas -->
     <canvas id="petCanvas"></canvas>
 
-    <!-- Load renderer script -->
-    <script>
-        require('./index.js');
-    </script>
+    <!-- 按依赖顺序加载渲染脚本（已关闭 nodeIntegration，不能用 require） -->
+    <script src="pet.js"></script>
+    <script src="canvas.js"></script>
+    <script src="behavior.js"></script>
+    <script src="index.js"></script>
 </body>
 </html>

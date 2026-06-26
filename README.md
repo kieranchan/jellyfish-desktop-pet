@@ -33,6 +33,12 @@ This is not just a desktop widget - it's an **autonomous digital creature** that
 
 ## ✨ 核心特性 | Features
 
+### 🐟 多宠物与多物种支持 | Multi-Pet & Multi-Species (NEW)
+- 默认可同时出现 1~5 只宠物自主活动
+- 不同宠物可使用不同颜色和物种（水母 / 简单鱼类）
+- 宠物之间会轻微避让，不会完全重叠
+- 在 `config.js` 的 `multiPet` 中调整数量
+
 ### 🤖 自主行为系统 | Autonomous Behavior System
 
 **多种移动模式 | Multiple Movement Patterns**

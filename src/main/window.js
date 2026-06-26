@@ -12,6 +12,12 @@ class WindowManager {
         const { width, height } = display.workAreaSize;
         const { x, y } = display.bounds;
 
+        console.log('[Window] Primary display:', {
+            bounds: display.bounds,
+            workArea: display.workArea,
+            scaleFactor: display.scaleFactor
+        });
+
         // 全屏透明窗口配置
         const windowOptions = {
             width: width,
@@ -27,6 +33,9 @@ class WindowManager {
             focusable: false,  // 不接受焦点
             show: false,
             webPreferences: {
+                // 渲染进程通过 preload.js 暴露的 electronAPI 与主进程通信，
+                // 因此关闭 nodeIntegration、开启 contextIsolation
+                // （安全模型，且让 contextBridge.exposeInMainWorld 正常工作）
                 nodeIntegration: false,
                 contextIsolation: true,
                 enableRemoteModule: false,
@@ -42,6 +51,14 @@ class WindowManager {
 
         this.mainWindow = new BrowserWindow(windowOptions);
 
+        // 提升置顶级别（Windows 上透明覆盖层有时需要更高级别）
+        if (process.platform === 'win32') {
+            this.mainWindow.setAlwaysOnTop(true, 'screen-saver');
+        }
+
+        // 额外日志帮助诊断
+        console.log('[Window] Window options applied, waiting for ready-to-show');
+
         // 设置窗口为完全鼠标穿透（除了宠物本身）
         this.mainWindow.setIgnoreMouseEvents(true, { forward: true });
 
@@ -54,10 +71,11 @@ class WindowManager {
         // 加载HTML文件
         await this.mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
-        // 开发模式下打开开发者工具
-        if (config.development.devTools) {
-            this.mainWindow.webContents.openDevTools({ mode: 'detach' });
-        }
+        // 开发模式下打开开发者工具（已临时禁用，避免干扰观察宠物效果）
+        // 如果需要调试，可以手动按 Ctrl+Shift+I （或在托盘菜单加功能）
+        // if (config.development.devTools) {
+        //     this.mainWindow.webContents.openDevTools({ mode: 'detach' });
+        // }
 
         // 窗口关闭事件
         this.mainWindow.on('closed', () => {

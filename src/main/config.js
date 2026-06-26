@@ -21,10 +21,18 @@ module.exports = {
         defaultPosition: 'center'  // 初始位置：center/random
     },
 
+    // 多宠物支持（新功能）
+    multiPet: {
+        enabled: true,
+        count: 3,                 // 默认 3 只。建议范围 1-4，避免过多导致内存/CPU 上升
+        minCount: 1,
+        maxCount: 5
+    },
+
     // AI行为配置 - 自主行为系统
     behavior: {
         enabled: true,
-        walkSpeed: 3,                      // 基础移动速度（像素/帧）
+        walkSpeed: 1.2,                    // 基础移动速度（像素/帧） 调小了方便观察
         blinkInterval: 4000,               // 眨眼间隔（毫秒）
         // 新增：完全自主AI配置
         autonomousMode: true,              // 完全自主模式

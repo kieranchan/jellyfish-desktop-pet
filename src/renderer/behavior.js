@@ -7,7 +7,7 @@ class BehaviorSystem {
         this.enabled = false;
         this.enabled = !!config.behavior.enabled;
 
-        // 定时器
+        // 定时器管理
         this.timers = {
             walk: null,
             action: null,
@@ -16,6 +16,8 @@ class BehaviorSystem {
         };
         this.pendingTimeouts = [];
         this.pendingIntervals = [];
+        this.activeRAFs = [];   // 追踪 requestAnimationFrame 以防止内存泄漏
+        this.destroyed = false; // 彻底销毁标志（移除宠物时）
 
         // 行为模式
         this.movePatterns = ['direct', 'curve', 'zigzag', 'wander'];
@@ -50,12 +52,13 @@ class BehaviorSystem {
 
     // 停止AI行为
     stop() {
-        if (!this.enabled) return this.enabled;
+        if (!this.enabled && !this.destroyed) return this.enabled;
 
         console.log('AI behavior system stopped');
 
         this.enabled = false;
 
+        // 清理主调度定时器
         Object.keys(this.timers).forEach(key => {
             if (this.timers[key]) {
                 clearTimeout(this.timers[key]);
@@ -63,17 +66,40 @@ class BehaviorSystem {
             }
         });
 
+        // 清理所有注册的 timeout / interval
         this.pendingTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
         this.pendingTimeouts = [];
 
         this.pendingIntervals.forEach(intervalId => clearInterval(intervalId));
         this.pendingIntervals = [];
 
+        // 关键：取消所有 requestAnimationFrame，防止动画持续运行导致内存占用和状态污染
+        this.cancelAllRAFs();
+
         return this.enabled;
+    }
+
+    destroy() {
+        this.destroyed = true;
+        this.stop();
+        // 清除对 pet 的引用帮助 GC
+        this.pet = null;
+        this.config = null;
+        this.screenSize = null;
     }
 
     toggle() {
         return this.setEnabled(!this.enabled);
+    }
+
+    setEnabled(enabled) {
+        if (enabled) {
+            this.enabled = true;
+            this.start();
+        } else {
+            this.stop();
+        }
+        return this.enabled;
     }
 
     // 安排随机移动
@@ -248,9 +274,32 @@ class BehaviorSystem {
         }, this.randomInt(1000, 3000));
     }
 
-    // 旋转
+    // 旋转（带动画）- 使用 registerRAF 防止泄漏
     performSpin() {
-        this.pet.state.rotation += 360;
+        if (!this.pet || this.destroyed || !this.enabled) return;
+
+        const startRot = this.pet.state.rotation || 0;
+        const spinAmount = 720; // 两圈
+        const duration = 1200;
+        let startTime = null;
+
+        const animateSpin = (timestamp) => {
+            if (this.destroyed || !this.enabled || !this.pet) return;
+
+            if (!startTime) startTime = timestamp;
+            const elapsed = timestamp - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            this.pet.state.rotation = startRot + spinAmount * progress;
+
+            if (progress < 1) {
+                this.registerRAF(animateSpin);
+            } else {
+                this.pet.state.rotation = (startRot + spinAmount) % 360;
+            }
+        };
+
+        this.registerRAF(animateSpin);
     }
 
     // 晃动
@@ -277,14 +326,18 @@ class BehaviorSystem {
         }, shakeDuration / shakeCount);
     }
 
-    // 弹跳
+    // 弹跳 - 使用 registerRAF 防止泄漏
     performBounce() {
+        if (!this.pet || this.destroyed || !this.enabled) return;
+
         const originalY = this.pet.state.y;
         const bounceHeight = 50;
         const duration = 600;
 
         let startTime = null;
         const animate = (timestamp) => {
+            if (this.destroyed || !this.enabled || !this.pet) return;
+
             if (!startTime) startTime = timestamp;
             const elapsed = timestamp - startTime;
             const progress = elapsed / duration;
@@ -292,13 +345,13 @@ class BehaviorSystem {
             if (progress < 1) {
                 const offset = Math.sin(progress * Math.PI) * bounceHeight;
                 this.pet.state.y = originalY - offset;
-                requestAnimationFrame(animate);
+                this.registerRAF(animate);
             } else {
                 this.pet.state.y = originalY;
             }
         };
 
-        requestAnimationFrame(animate);
+        this.registerRAF(animate);
     }
 
     // 漂移
@@ -399,6 +452,35 @@ class BehaviorSystem {
     removePendingInterval(intervalId) {
         this.pendingIntervals = this.pendingIntervals.filter(id => id !== intervalId);
     }
+
+    // === RAF 管理（内存安全关键）===
+    registerRAF(callback) {
+        if (this.destroyed || !this.enabled) return null;
+        const rafId = requestAnimationFrame((ts) => {
+            // 移除自身
+            this.removePendingRAF(rafId);
+            // 仅在仍启用时执行
+            if (!this.destroyed && this.enabled) {
+                callback(ts);
+            }
+        });
+        this.activeRAFs.push(rafId);
+        return rafId;
+    }
+
+    removePendingRAF(rafId) {
+        this.activeRAFs = this.activeRAFs.filter(id => id !== rafId);
+    }
+
+    cancelAllRAFs() {
+        this.activeRAFs.forEach(id => {
+            try { cancelAnimationFrame(id); } catch (e) {}
+        });
+        this.activeRAFs = [];
+    }
 }
 
-module.exports = BehaviorSystem;
+// 在 Node 上下文（如被 require）时导出；在浏览器 <script> 上下文中已是全局类
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = BehaviorSystem;
+}

@@ -1,4 +1,4 @@
-const { Tray, Menu, app, nativeImage } = require('electron');
+const { Tray, Menu, app, nativeImage, dialog } = require('electron');
 const path = require('path');
 const config = require('./config');
 
@@ -30,7 +30,8 @@ class TrayManager {
         }
 
         this.tray = new Tray(trayIcon);
-        this.tray.setToolTip(config.tray.tooltip);
+        const petCount = (config.multiPet && config.multiPet.enabled) ? (config.multiPet.count || 1) : 1;
+        this.tray.setToolTip(`${config.tray.tooltip} (${petCount} pets)`);
 
         console.log('Tray icon loaded successfully');
 
@@ -78,12 +79,46 @@ class TrayManager {
                     this.windowManager.centerWindow();
                 }
             },
+            {
+                label: 'Open DevTools (调试)',
+                click: () => {
+                    if (this.windowManager.mainWindow) {
+                        this.windowManager.mainWindow.webContents.openDevTools({ mode: 'detach' });
+                    }
+                }
+            },
+            { type: 'separator' },
+            {
+                label: '➕ Add Pet',
+                click: () => {
+                    if (this.windowManager.mainWindow) {
+                        this.windowManager.mainWindow.webContents.send('add-pet-request');
+                    }
+                }
+            },
+            {
+                label: '➖ Remove Pet',
+                click: () => {
+                    if (this.windowManager.mainWindow) {
+                        this.windowManager.mainWindow.webContents.send('remove-pet-request');
+                    }
+                }
+            },
             { type: 'separator' },
             {
                 label: 'About',
                 click: () => {
-                    // TODO: 显示关于对话框
-                    console.log('Jellyfish Desktop Pet v1.0.0');
+                    dialog.showMessageBox({
+                        type: 'info',
+                        title: '关于 - 水母桌面宠物',
+                        message: '水母桌面宠物 v2.0 (Autonomous AI)',
+                        detail: '多只自主AI宠物在屏幕上自由漫游\n\n' +
+                            '• 完全自主，无需交互\n' +
+                            '• 支持多宠物与多种类\n' +
+                            '• 鼠标穿透，不打扰工作\n\n' +
+                            '右键托盘可添加/移除宠物',
+                        buttons: ['确定']
+                    });
                 }
             },
             { type: 'separator' },

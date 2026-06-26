@@ -21,16 +21,27 @@ class CanvasEngine {
         this.canvas.style.height = this.screenSize.height + 'px';
     }
 
-    // 主渲染方法
-    render(pet) {
+    // 主渲染方法 - 支持单个宠物或宠物数组（多宠物模式）
+    render(pets) {
         this.clear();
 
-        const pos = pet.getRenderPosition();
-        const expression = pet.state.expression;
-        const color = pet.state.color;
+        // 兼容旧的单宠物调用和新的多宠物数组
+        const petList = Array.isArray(pets) ? pets : [pets];
 
-        // 绘制水母身体
-        this.drawJellyfish(pos.x, pos.y, expression, color, pet.animation);
+        petList.forEach(pet => {
+            if (!pet) return;
+            const pos = pet.getRenderPosition();
+            const expression = pet.state.expression;
+            const color = pet.state.color;
+            const species = pet.species || 'jellyfish';
+
+            // 根据物种选择绘制方式
+            if (species === 'jellyfish') {
+                this.drawJellyfish(pos.x, pos.y, expression, color, pet.animation, pet.state);
+            } else {
+                this.drawSimpleFish(pos.x, pos.y, expression, color, pet.animation, pet.state);
+            }
+        });
     }
 
     // 清除画布
@@ -39,11 +50,28 @@ class CanvasEngine {
     }
 
     // 绘制水母（像素风格）
-    drawJellyfish(x, y, expression, color, animation) {
+    drawJellyfish(x, y, expression, color, animation, state = {}) {
         const pixels = this.getJellyfishPixels(expression, animation);
 
         this.ctx.save();
         this.ctx.translate(x, y);
+
+        // 支持旋转、缩放、透明度（多宠物和动作增强）
+        const rotation = state.rotation || 0;
+        const scale = state.scale || 1.0;
+        const opacity = state.opacity !== undefined ? state.opacity : 1.0;
+
+        // 放大倍数（让像素水母在高分屏上更清晰可见）
+        const visibilityScale = 2;
+
+        if (rotation !== 0) {
+            this.ctx.rotate(rotation * Math.PI / 180);
+        }
+        this.ctx.scale(visibilityScale, visibilityScale);
+        if (scale !== 1.0) {
+            this.ctx.scale(scale, scale);
+        }
+        this.ctx.globalAlpha = opacity;
 
         // 绘制身体
         this.ctx.fillStyle = color;
@@ -93,12 +121,17 @@ class CanvasEngine {
                 eyes = [[24, 28], [28, 28], [36, 28], [40, 28]];  // 开心的大眼睛
                 eyesBlinking = [[24, 28], [28, 28], [36, 28], [40, 28]];
                 break;
-            case 'angry':
-                eyes = [[24, 32], [28, 28], [36, 28], [40, 32]];  // 生气的斜眼
-                eyesBlinking = [[24, 30], [28, 30], [36, 30], [40, 30]];
+            case 'curious':
+                eyes = [[26, 26], [30, 26], [34, 26], [38, 26]];  // 好奇的小眼睛上移
+                eyesBlinking = [[24, 28], [28, 28], [36, 28], [40, 28]];
                 break;
+            case 'sleepy':
             case 'sleep':
                 eyes = [];  // 睡觉时闭眼
+                eyesBlinking = [[24, 30], [28, 30], [36, 30], [40, 30]];
+                break;
+            case 'angry':
+                eyes = [[24, 32], [28, 28], [36, 28], [40, 32]];  // 生气的斜眼
                 eyesBlinking = [[24, 30], [28, 30], [36, 30], [40, 30]];
                 break;
             case 'dead':
@@ -141,6 +174,57 @@ class CanvasEngine {
     getCanvas() {
         return this.canvas;
     }
+
+    // 简单鱼类物种（作为不同物种的示例）
+    drawSimpleFish(x, y, expression, color, animation, state = {}) {
+        this.ctx.save();
+        this.ctx.translate(x, y);
+
+        const rotation = state.rotation || 0;
+        const scale = (state.scale || 1.0) * 0.9;
+        const opacity = state.opacity !== undefined ? state.opacity : 1.0;
+
+        // 放大倍数（与水母保持一致）
+        const visibilityScale = 2;
+
+        if (rotation !== 0) this.ctx.rotate(rotation * Math.PI / 180);
+        this.ctx.scale(visibilityScale, visibilityScale);
+        this.ctx.scale(scale, scale);
+        this.ctx.globalAlpha = opacity;
+
+        // 简单鱼身像素
+        this.ctx.fillStyle = color;
+        const body = [
+            [24, 32], [28, 28], [32, 28], [36, 28], [40, 32],
+            [24, 36], [28, 32], [32, 32], [36, 32], [40, 36],
+            [28, 36], [32, 36], [36, 36]
+        ];
+        body.forEach(([px, py]) => {
+            this.ctx.fillRect(px - 32, py - 32, 4, 4);
+        });
+
+        // 鱼尾
+        this.ctx.fillStyle = color;
+        const tailOffset = Math.sin(animation.tentaclePhase * 1.5) * 2;
+        this.ctx.fillRect(20 - 32 + tailOffset, 30 - 32, 4, 4);
+        this.ctx.fillRect(16 - 32 + tailOffset * 0.7, 32 - 32, 4, 4);
+
+        // 眼睛
+        this.ctx.fillStyle = '#000';
+        if (!animation.isBlinking) {
+            this.ctx.fillRect(36 - 32, 28 - 32, 4, 4);
+        } else {
+            this.ctx.fillRect(36 - 32, 29 - 32, 4, 2);
+        }
+
+        // 鱼鳍小装饰
+        this.ctx.fillRect(30 - 32, 24 - 32, 3, 3);
+
+        this.ctx.restore();
+    }
 }
 
-module.exports = CanvasEngine;
+// 在 Node 上下文（如被 require）时导出；在浏览器 <script> 上下文中已是全局类
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = CanvasEngine;
+}

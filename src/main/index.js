@@ -1,7 +1,11 @@
 const { app, ipcMain } = require('electron');
+const fs = require('fs');
+const path = require('path');
 const WindowManager = require('./window');
 const TrayManager = require('./tray');
 const config = require('./config');
+
+const MEM_LOG_PATH = path.join(__dirname, '..', '..', 'memory_test.log');
 
 class Application {
     constructor() {
@@ -25,6 +29,30 @@ class Application {
         }
 
         console.log('Water Jellyfish Pet started successfully!');
+
+        // 主进程内存监控（每 15 秒，记录到文件 + console，便于长期观察是否泄漏）
+        const memInterval = setInterval(() => {
+            const mem = process.memoryUsage();
+            const rssMB = (mem.rss / 1024 / 1024).toFixed(1);
+            const heapUsedMB = (mem.heapUsed / 1024 / 1024).toFixed(1);
+            const heapTotalMB = (mem.heapTotal / 1024 / 1024).toFixed(1);
+            const externalMB = (mem.external / 1024 / 1024).toFixed(1);
+
+            const logLine = `[${new Date().toISOString()}] [MAIN] RSS:${rssMB}MB heapUsed:${heapUsedMB}MB heapTotal:${heapTotalMB}MB external:${externalMB}MB`;
+
+            console.log(`[MAIN MEMORY] RSS: ${rssMB} MB | HeapUsed: ${heapUsedMB} MB`);
+
+            try {
+                fs.appendFileSync(MEM_LOG_PATH, logLine + '\n');
+            } catch (e) {
+                // ignore file write errors during test
+            }
+        }, 15000);
+
+        // 应用退出时清理
+        app.on('before-quit', () => {
+            clearInterval(memInterval);
+        });
     }
 
     registerIPC() {
@@ -88,6 +116,28 @@ class Application {
             if (this.trayManager) {
                 this.trayManager.updateContextMenu(behaviorEnabled);
             }
+        });
+
+        // 多宠物控制 IPC
+        ipcMain.on('add-pet', (event) => {
+            if (this.windowManager && this.windowManager.mainWindow) {
+                this.windowManager.mainWindow.webContents.send('add-pet-request');
+            }
+        });
+
+        ipcMain.on('remove-pet', (event) => {
+            if (this.windowManager && this.windowManager.mainWindow) {
+                this.windowManager.mainWindow.webContents.send('remove-pet-request');
+            }
+        });
+
+        // 测试用：接收 renderer 内存报告并写文件 + console（便于观察）
+        ipcMain.on('report-memory', (event, data) => {
+            try {
+                const line = `[${new Date().toISOString()}] [RENDERER] pets:${data.pets || '?'} usedJSHeap:${data.usedMB || '?'}MB total:${data.totalMB || '?'}MB`;
+                fs.appendFileSync(MEM_LOG_PATH, line + '\n');
+                console.log(`[RENDERER MEMORY via IPC] Pets:${data.pets} Heap:${data.usedMB}MB / ${data.totalMB}MB`);
+            } catch (e) {}
         });
 
         console.log('IPC handlers registered');

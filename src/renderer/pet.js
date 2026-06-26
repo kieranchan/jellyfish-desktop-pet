@@ -1,13 +1,29 @@
 // 宠物状态管理类 - 全屏自主移动
 class Pet {
-    constructor(canvas, config, screenSize) {
+    constructor(canvas, config, screenSize, id = 0) {
         this.canvas = canvas;
         this.config = config;
         this.screenSize = screenSize;
+        this.id = id;           // 宠物唯一标识（多宠物支持）
+        this.species = 'jellyfish'; // 默认物种，后续可扩展为 fish / butterfly 等
 
-        // 初始位置随机
-        const startX = Math.random() * screenSize.width;
-        const startY = Math.random() * screenSize.height;
+        // 初始位置（多宠物时尽量分散）
+        let startX, startY;
+        if (id > 0 && screenSize) {
+            const zone = id % 4;
+            const w = screenSize.width;
+            const h = screenSize.height;
+            const margin = 150;
+            switch (zone) {
+                case 1: startX = margin + Math.random() * (w * 0.4); startY = margin + Math.random() * (h * 0.4); break;
+                case 2: startX = w * 0.6 + Math.random() * (w * 0.35 - margin); startY = margin + Math.random() * (h * 0.4); break;
+                case 3: startX = margin + Math.random() * (w * 0.4); startY = h * 0.6 + Math.random() * (h * 0.35 - margin); break;
+                default: startX = w * 0.55 + Math.random() * (w * 0.4); startY = h * 0.55 + Math.random() * (h * 0.4); break;
+            }
+        } else {
+            startX = Math.random() * screenSize.width;
+            startY = Math.random() * screenSize.height;
+        }
 
         // 宠物状态
         this.state = {
@@ -66,26 +82,41 @@ class Pet {
         this.state.vy *= 0.98;
     }
 
-    // 边界处理
+    // 边界处理 - 更自然的屏幕边缘行为
     handleBoundaries() {
-        const margin = 100;  // 允许的边界外距离
-        const petSize = this.config.pet.size;
+        const margin = 60;
+        const softMargin = 30;
+        const w = this.screenSize.width;
+        const h = this.screenSize.height;
 
-        // 离开屏幕太远则反弹
+        // 软边界：接近边缘时减速并转向
+        if (this.state.x < softMargin) {
+            this.state.vx = Math.max(this.state.vx, 1.5);
+        } else if (this.state.x > w - softMargin) {
+            this.state.vx = Math.min(this.state.vx, -1.5);
+        }
+
+        if (this.state.y < softMargin) {
+            this.state.vy = Math.max(this.state.vy, 1.5);
+        } else if (this.state.y > h - softMargin) {
+            this.state.vy = Math.min(this.state.vy, -1.5);
+        }
+
+        // 硬边界反弹（防止完全跑飞）
         if (this.state.x < -margin) {
             this.state.x = -margin;
-            this.state.vx = Math.abs(this.state.vx);
-        } else if (this.state.x > this.screenSize.width + margin) {
-            this.state.x = this.screenSize.width + margin;
-            this.state.vx = -Math.abs(this.state.vx);
+            this.state.vx = Math.abs(this.state.vx) * 0.6;
+        } else if (this.state.x > w + margin) {
+            this.state.x = w + margin;
+            this.state.vx = -Math.abs(this.state.vx) * 0.6;
         }
 
         if (this.state.y < -margin) {
             this.state.y = -margin;
-            this.state.vy = Math.abs(this.state.vy);
-        } else if (this.state.y > this.screenSize.height + margin) {
-            this.state.y = this.screenSize.height + margin;
-            this.state.vy = -Math.abs(this.state.vy);
+            this.state.vy = Math.abs(this.state.vy) * 0.6;
+        } else if (this.state.y > h + margin) {
+            this.state.y = h + margin;
+            this.state.vy = -Math.abs(this.state.vy) * 0.6;
         }
     }
 
@@ -158,4 +189,7 @@ class Pet {
     }
 }
 
-module.exports = Pet;
+// 在 Node 上下文（如被 require）时导出；在浏览器 <script> 上下文中 Pet 已是全局类
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = Pet;
+}
